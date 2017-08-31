@@ -188,19 +188,21 @@ class EventManager(object):
 		"""output each month's events in one row, with event type and event unit only, in latest 12 months"""
 		today = date.today()
 		startdates = sorted(self.__events.keys())[max(-months*2, -len(self.__events)):]
-		prevmonth = startdates[0].month
+		prevmonth = 0
 		lastmonth_info = ""
 		for startdate in startdates:
 			event = self.__events[startdate]
 			if prevmonth != startdate.month:
-				print('\n\t\t\t%s / %s\n' % (startdate.year, startdate.month))
 				print(lastmonth_info)
+				print('\n\t\t\t%s / %s\n' % (startdate.year, startdate.month))
 				lastmonth_info = ""
 				prevmonth = startdate.month
 			if startdate >= startdate.replace(day=15):
 				# 2nd event in the month
-				lastmonth_info += ' ' * (36 - len(lastmonth_info))
-			lastmonth_info += '%s, %s' % (event.get_event_type(), event.get_event_unit())
+				lastmonth_info += ' ' * (32 - len(lastmonth_info))
+			lastmonth_info += '%s %d, %s' % (event.get_event_type(), event.get_event_times(), event.get_event_unit())
+		# last month's info is not yet printed
+		print(lastmonth_info)
 
 	def test(self):
 		events = self.get_events('us')
