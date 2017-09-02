@@ -4,7 +4,7 @@
 @file    constants.py
 @author  Cecilia M.
 @date    2017-08-30
-@version $Id: sifevents.py 01 2017-08-30 15:14: behrisch $
+@version $Id: constants.py 02 2017-09-01 22:21: behrisch $
 
 This file contains constants used in the process of parsing and 
 analyzing the past events of Japanese version 
@@ -19,6 +19,12 @@ PARSEDFILE = "parsedevents.txt"
 
 EVENTTYPES = ['Collection Event', 'Score Match', 'Medley Festival', 'Challenge Festival', 'Touring Rally', 'Friendly Match']
 
-UNITS = [u"u's", u'aqours']
+GROUPS = [u"u's", u'aqours']
 US = ['Honoka', 'Kotori', 'Umi', 'Hanayo', 'Rin', 'Maki', 'Eli', 'Nozomi', 'Nico']
 AQOURS = ['Chika', 'You', 'Riko', 'Hanamaru', 'Ruby', 'Yoshiko', 'Dia', 'Kanan', 'Mari']
+
+UNITS = ['Printemps', 'Lily White', 'BiBi', 'CYaRon!', 'AZALEA', 'Guilty Kiss']
+GRADES = ['1st Year', '2nd Year', '3rd Year']
+
+CARDATTRIBUTES = ['Smile', 'Pure', 'Cool']
+CARDRANKS = ['N', 'R', 'SR', 'SSR', 'UR', 'UR-GIFT']

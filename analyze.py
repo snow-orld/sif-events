@@ -1,10 +1,10 @@
 #!/user/bin/env python
 # -*- coding: utf8 -*-
 """
-@file    analysis.py
+@file    analyze.py
 @author  Cecilia M.
 @date    2017-08-30
-@version $Id: sifevents.py 01 2017-08-30 15:14: behrisch $
+@version $Id: analyze.py 02 2017-09-02 16:43: behrisch $
 
 This script analyzes the past events of Japanese version 
 based on a local parsed file with info from the wiki page
@@ -15,9 +15,13 @@ import os
 import re
 import codecs
 import webbrowser
-from datetime import date
+from datetime import date, timedelta
+import argparse
+import urllib
+from bs4 import BeautifulSoup
 
 from constants import *
+from classes import *
 
 class Period(object):
 	"""Class Period parsing from the string format year/month/day - month/day"""
@@ -62,9 +66,9 @@ class Event(object):
 			self.__type = name[:name.find('Round')].strip()
 			self.__times = int(name[name.find('Round') + 5:].strip())
 
-		if self.__pointsSR in US:
+		if pointsSR in US:
 			self.__unit = "u's" # µ's
-		elif self.__pointsSR in AQOURS:
+		elif pointsSR in AQOURS:
 			self.__unit = "Aqours"
 		else:
 			self.__unit = 'Unknown'
@@ -85,6 +89,13 @@ class Event(object):
 		else:
 			self.__cutoff['point3'] = None
 		self.__cutoff['rank3'] = int(rank_cutoff_3)
+
+	def newSR(self, link):
+		# return a SRCard instance from given SRLink
+		# urllib is too slow for a onflow building new SR object, neither reading from a local member file
+		# better run a card manager before event manger if event manger is to exploit members' cards
+		# better better if have to look up detail info about a SR, read the link on need
+		return
 
 	def get_event_name(self):
 		return self.__name
@@ -171,9 +182,9 @@ class EventManager(object):
 			for key in sorted(self.__events.keys()):
 				if self.__events[key].get_event_type().lower() == etype.lower():
 					events[key] = self.__events[key]
-		elif etype.lower() in UNITS + ["u's", "us"]:
+		elif etype.lower() in GROUPS + ["u's", "us"]:
 			if etype.lower() in ["u's", "us"]:
-				etype = UNITS[0]
+				etype = GROUPS[0]
 			events = {}
 			print(etype.encode('latin1').decode('latin1'))
 			for key in sorted(self.__events.keys()):
@@ -187,7 +198,7 @@ class EventManager(object):
 	def get_event_pattern(self, months=12):
 		"""output each month's events in one row, with event type and event unit only, in latest 12 months"""
 		today = date.today()
-		startdates = sorted(self.__events.keys())[max(-months*2, -len(self.__events)):]
+		startdates = sorted(self.__events.keys())[max(-int(months)*2,-len(self.__events)):]
 		prevmonth = 0
 		lastmonth_info = ""
 		for startdate in startdates:
@@ -209,11 +220,11 @@ class EventManager(object):
 		for key in sorted(events.keys()):
 			event = events[key]
 			print("%s %s %s: %d" % (key, event.get_event_name(), event.get_event_type(), event.get_event_times()))
-		self.get_event_pattern(months=6)
 
 def main():
-	if not os.path.exists(PARSEDFILE):
-		os.system("python parse.py")
+	
+	# update local parsed file if necessary
+	os.system("python parse.py")
 
 	eventmanager = EventManager()
 	with codecs.open(PARSEDFILE, 'r', encoding='utf-8') as f:
@@ -240,6 +251,28 @@ def main():
 
 			eventmanager.add_event(event)
 
+		# eventmanager.test()
+	
+	# handle arguments
+	parser = argparse.ArgumentParser(description='SIF events analyzer.')
+	parser.add_argument('-v', '--version', action='version', version='%(prog)s 1.0')
+	parser.add_argument('-T', '--type', help='get all events by event or unit type')
+	parser.add_argument('-p', '--patern', action='store_true', help='show latest 12 months events pattern')
+	parser.add_argument('-m', '--month', help='the number of latest months to investigate')
+	parser.add_argument('-t', '--test', action='store_true', help='run eventmanager\' test methods')
+
+	args = parser.parse_args()
+
+	if args.patern:
+		eventmanager.get_event_pattern(months=args.month)
+
+	if args.type:
+		events = eventmanager.get_events(args.type)
+		for startdate in sorted(events.keys()):
+			event = events[startdate]
+			print('%s %s %s %s' % (startdate, event.get_event_unit(), event.get_event_name(), event.get_event_times() if event.get_event_type() == 'Collection Event' else ''))
+
+	if args.test:
 		eventmanager.test()
 
 if __name__ == '__main__':
