@@ -21,7 +21,6 @@ import urllib
 from bs4 import BeautifulSoup
 
 from constants import *
-from classes import *
 
 class Period(object):
 	"""Class Period parsing from the string format year/month/day - month/day"""
