@@ -96,7 +96,7 @@ class Event(object):
 		return '{}: '.format(self.__class__.__name__,
 			self.__period,
 			self.__unit,
-			self.__name
+			self.__name,
 			self.__type,
 			self.__times,
 			self.__pointsSR,
@@ -168,16 +168,18 @@ class EventManager(object):
 			if etype not in self.__eventtypes:
 				self.__eventtypes.append(etype)
 
-	def get_events(self, etype):
+	def get_events(self, etype, startdate=date.min, enddate=date.today()):
 		events = {}
 		# note, dictionary does not preserver order regardless of inserted order
 		if etype.lower() == 'all' or etype.lower() == 'a':
-			return self.__events
-		elif etype.lower() in [t.lower() for t in self.__eventtypes]:
+			for key in sorted(self.__events.keys()):
+				if key >= startdate and key <= enddate:
+					events[key] = self.__events[key]
+		elif etype.lower() in [t.lower().replace(' ', '') for t in self.__eventtypes]:
 			print([t.lower() for t in self.__eventtypes])
 			events = {}
 			for key in sorted(self.__events.keys()):
-				if self.__events[key].get_event_type().lower() == etype.lower():
+				if key >= startdate and key <= enddate and self.__events[key].get_event_type().lower().replace(' ','') == etype.lower():
 					events[key] = self.__events[key]
 		elif etype.lower() in GROUPS + ["u's", "us"]:
 			if etype.lower() in ["u's", "us"]:
@@ -185,7 +187,7 @@ class EventManager(object):
 			events = {}
 			print(etype.encode('latin1').decode('latin1'))
 			for key in sorted(self.__events.keys()):
-				if self.__events[key].get_event_unit().lower() == etype.lower():
+				if key >= startdate and key <= enddate and self.__events[key].get_event_unit().lower() == etype.lower():
 					events[key] = self.__events[key]
 		return events
 
@@ -247,7 +249,7 @@ class Member(object):
 		else:
 			self.__cardpool[rank][cardid] = card
 
-	def get_cards(self, cardid=None, rank=None, attribute=None):
+	def get_cards(self, cardid=None, rank=None, attribute=None, startdate=date.min, enddate=date.today()):
 		if cardid != None and type(cardid) != int:
 			raise RuntimeError('Get member cards error: invalid cardid type %s' % type(cardid))
 
@@ -270,17 +272,22 @@ class Member(object):
 				for cardid in self.__cardpool[rank]:
 					card = self.__cardpool[rank][cardid]
 					if card.attribute == attribute:
-						cards[cardid] = card
+						if type(card.releasedate) == str or (card.releasedate >= startdate and card.releasedate <= enddate):
+							cards[cardid] = card
 			elif rank and not attribute:
-				cards = self.__cardpool[rank]
+				for cardid in self.__cardpool[rank]:
+					card = self.__cardpool[rank][cardid]
+					if type(card.releasedate) == str or (card.releasedate >= startdate and card.releasedate <= enddate):
+						cards[cardid] = card
 			elif not rank and attribute:
 				for rank in self.__cardpool:
 					for cardid in self.__cardpool[rank]:
 						card = self.__cardpool[rank][cardid]
-						if card.attribut == attribute:
-							cards[cardid] = card
+						if card.attribute == attribute:
+							if type(card.releasedate) == str or (card.releasedate >= startdate and card.releasedate <= enddate):
+								cards[cardid] = card
 			else:
-				print('No cardid, rank, or attributed specified to pick cards. Nothing can be selected.')
+				print('No cardid, rank, or attribut specified to pick cards. Nothing can be selected.')
 
 		return cards
 
@@ -327,13 +334,26 @@ def get_options():
 	parser.add_argument('-B', '--month', metavar='M', default=12, help='event: the number of latest months to investigate')
 	parser.add_argument('-P', '--patern', action='store_true', help='event: show latest 12 months events pattern')
 	parser.add_argument('-t', '--test', action='store_true', help='event: run eventmanager\' test methods')
-	parser.add_argument('-m', '--member', metavar='name', nargs='*', default=[], choices=US+AQOURS, help='member: specify a member to perform further quries using member info only related to this memeber.')
+	parser.add_argument('-m', '--member', metavar='name', nargs='*', default=[], choices=US+AQOURS, help='member: pre-load members\' files to perform further quries')
 	parser.add_argument('-b', '--birthday', nargs='+', choices=US+AQOURS, help='member: display birthday of (a) member(s)')
-	parser.add_argument('-c', '--card', nargs='+', help='select member cards by rank or cardid or attribute')
-
+	parser.add_argument('-c', '--card', nargs='+', help='member: select member cards by rank or cardid or attribute')
+	parser.add_argument('--before-date', help='if specified, only events or cards before specified date is investigated')
+	parser.add_argument('--after-date', help='if specified, only events or cards after specified date is investigated ')
+	
 	args = parser.parse_args()
 
 	return args
+
+def parse_date(datestring):
+	if datestring == None:
+		return None
+	match = re.search(r'(\d+)\W(\d+)\W(\d+)', datestring)
+	if match:
+		y, m, d = int(match.group(1)), int(match.group(2)), int(match.group(3))
+		# print y, m, d
+		return date(y, m, d)
+	else:
+		raise RuntimeError('Parse date error: invalid date format "{}"'.format(datestring))
 
 def load_events(manager):
 	with codecs.open(PARSEDFILE, 'r', encoding='utf-8') as f:
@@ -408,6 +428,13 @@ def main():
 	
 	args = get_options()
 
+	startdate = parse_date(args.after_date)
+	enddate = parse_date(args.before_date)
+	if not startdate:
+		startdate = date.min
+	if not enddate:
+		enddate = date.today()
+
 	if args.genere == 'event':
 
 		# update local parsed file if necessary
@@ -420,7 +447,7 @@ def main():
 			eventmanager.get_event_pattern(months=args.month)
 
 		if args.type:
-			events = eventmanager.get_events(args.type)
+			events = eventmanager.get_events(args.type, startdate, enddate)
 			for startdate in sorted(events.keys()):
 				event = events[startdate]
 				print('%s %s %s %s' % (startdate, event.get_event_unit(), event.get_event_name(), event.get_event_times() if event.get_event_type() == 'Collection Event' else ''))
@@ -468,7 +495,7 @@ def main():
 				if cardarg in CARDRANKS:
 					rank = cardarg
 
-			print('selecting cards with (name=%s, cardid=%s, rank=%s, attribute=%s)' % (name, cardid, rank, attribute))
+			print('selecting cards with (name=%s, cardid=%s, rank=%s, attribute=%s) from %s to %s' % (name, cardid, rank, attribute, startdate, enddate))
 
 			if name in US+AQOURS:
 				if not membermanager.loaded_member(name):
@@ -476,7 +503,7 @@ def main():
 					mp.parse(name)
 					load_member(membermanager, name)
 
-				cards = membermanager.get_member(name).get_cards(cardid, rank, attribute)
+				cards = membermanager.get_member(name).get_cards(cardid, rank, attribute, startdate, enddate)
 				print('Found %d %s %s %s card(s)%s.' % (len(cards), attribute if attribute else '', rank if rank else '', name, 'width id #' + str(cardid) if cardid else ''))
 
 				for card in sorted(cards.values(), reverse=True):
