@@ -4,20 +4,23 @@
 @file    classes.py
 @author  Cecilia M.
 @date    2017-09-01
-@version $Id: classes.py 02 2017-09-05 23:01: behrisch $
+@version $Id: classes.py 02 2017-09-06 17:59: behrisch $
 
 This script descrbes the basic component that appears 
 in the SIF game.
 """
+
+import re
+from datetime import date
 
 from constants import *
 from random import random
 
 class Card(object):
 	""" Base Class for all cards in the game"""
-	def __init__(self, cid, name, attribute, rank, maxsmile=0, maxpure=0, maxcool=0, skill='None', effect='', leaderskill='None', leadereffect='', version='', releasedate=''):
+	def __init__(self, cid, name, attribute, rank, maxsmile=0, maxpure=0, maxcool=0, skill='None', effect='', leaderskill='None', leadereffect='', version='N/A', releasedate='N/A'):
 		super(Card, self).__init__()
-		self.id = int(cid)	# id of card across the game
+		self.id = int(cid[1:])	# id of card across the game, cid is of format #\d+
 		self.name = name	# member name of the card
 		self.attribute = attribute	# smile, pure, or cool
 		self.rank = rank	# N, R, SR, SSR, UR
@@ -30,6 +33,17 @@ class Card(object):
 		self.effect = effect	# detail of the skill effects
 		self.leaderskill = leaderskill	# leader skill name of the card
 		self.leadereffect = leadereffect	# detail of leader skill effects
+
+		# card version is not presented in R card
+		self.version = version
+
+		# release date may be missing for some cards that is distributed in special method
+		self.releasedate = 'N/A'
+		if re.search(r'^\d\d\d\d-\d\d-\d\d$', releasedate):
+			y, m, d = [int(s) for s in releasedate.split('-')]
+			self.releasedate = date(y, m, d)
+		else:
+			self.notation = releasedate
 
 		# common attributes
 		self.isidolized = False
@@ -45,6 +59,35 @@ class Card(object):
 		self.maxbond = 0
 		self.skillslot = 0
 		self.maxskillslot = 0
+
+	# comparator: http://pythoncentral.io/how-to-sort-python-dictionaries-by-key-or-value/
+	def __cmp__(self, other):
+		# print(self.get_maxpoint(), other.get_maxpoint())
+		return self.get_maxpoint().__cmp__(other.get_maxpoint())
+
+	# representation of object
+	def __repr__(self):
+		return '{}: {}\t#{}\t{}{}{}\t{} ({},{},{})\t{}\t{}'.format(self.__class__.__name__,
+			self.name,
+			self.id,
+			self.rank,
+			' ' * (4 - len(self.rank)),
+			self.attribute,
+			self.get_maxpoint(),
+			self.maxsmile,
+			self.maxpure,
+			self.maxcool,
+			self.releasedate if self.releasedate != 'N/A' else self.notation,
+			self.version,
+			)
+
+	def get_maxpoint(self):
+		if self.attribute == 'Smile':
+			return self.maxsmile
+		elif self.attribute == 'Pure':
+			return self.maxpure
+		else:
+			return self.maxcool
 
 	def idolize(self, card=None):
 		self.maxbond *= 2
@@ -118,19 +161,19 @@ class URGiftCard(URCard):
 if __name__ == '__main__':
 	# unit test
 	for rank in CARDRANKS:
-		cid = 0
+		cid = '#0'
 		name = US[int(random() * len(US))]
 		attribute = CARDATTRIBUTES[int(random() * len(CARDATTRIBUTES))]
 		if rank == 'N':
 			card = NCard(cid, name, attribute, 0, 0, 0)
 		if rank == 'R':
-			card = RCard(cid, name, attribute, 0, 0, 0, '', '', '', '', '', '')
+			card = RCard(cid, name, attribute, 1, 1, 1, '', '', '', '', '', '')
 		if rank == 'SR':
-			card = SRCard(cid, name, attribute, 0, 0, 0, '', '', '', '', '', '')
+			card = SRCard(cid, name, attribute, 2, 2, 2, '', '', '', '', '', '')
 		if rank == 'SSR':
-			card = SSRCard(cid, name, attribute, 0, 0, 0, '', '', '', '', '', '')
+			card = SSRCard(cid, name, attribute, 3, 3, 3, '', '', '', '', '', '')
 		if rank == 'UR':
-			card = URCard(cid, name, attribute, 0, 0, 0, '', '', '', '', '', '')
+			card = URCard(cid, name, attribute, 4, 4, 4, '', '', '', '', '', '')
 		if rank == 'UR-GIFT':
-			card = URGiftCard(cid, name, attribute, 0, 0, 0, '', '', '', '', '', '')
-		print('%s\t#%d%s%s\t%s\tmax %d,%d,%d\tlevel %d/%d\tbond %d/%d\tskillslot %d/%d' % (card.name, card.id, ' ' * (7-len(str(card.id))), card.rank, card.attribute, card.maxsmile, card.maxpure, card.maxcool, card.level, card.maxlevel, card.bond, card.maxbond, card.skillslot, card.maxskillslot))
+			card = URGiftCard(cid, name, attribute, 4, 4, 4, '', '', '', '', '', '')
+		print('%s\t#%d%s%s\t%s\tmax %d|%d,%d,%d\tlevel %d/%d\tbond %d/%d\tskillslot %d/%d' % (card.name, card.id, ' ' * (7-len(str(card.id))), card.rank, card.attribute, card.get_maxpoint(), card.maxsmile, card.maxpure, card.maxcool, card.level, card.maxlevel, card.bond, card.maxbond, card.skillslot, card.maxskillslot))

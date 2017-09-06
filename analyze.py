@@ -4,7 +4,7 @@
 @file    analyze.py
 @author  Cecilia M.
 @date    2017-08-30
-@version $Id: analyze.py 02 2017-09-02 16:43: behrisch $
+@version $Id: analyze.py 03 2017-09-06 18:22: behrisch $
 
 This script analyzes the past events of Japanese version 
 based on a local parsed file with info from the wiki page
@@ -18,9 +18,12 @@ import webbrowser
 from datetime import date, timedelta
 import argparse
 import urllib
-from bs4 import BeautifulSoup
+import sys
+import xml.etree.ElementTree as ET
 
 from constants import *
+from classes import *
+import membersparse as mp
 
 class Period(object):
 	"""Class Period parsing from the string format year/month/day - month/day"""
@@ -89,13 +92,20 @@ class Event(object):
 			self.__cutoff['point3'] = None
 		self.__cutoff['rank3'] = int(rank_cutoff_3)
 
-	def newSR(self, link):
-		# return a SRCard instance from given SRLink
-		# urllib is too slow for a onflow building new SR object, neither reading from a local member file
-		# better run a card manager before event manger if event manger is to exploit members' cards
-		# better better if have to look up detail info about a SR, read the link on need
-		return
+	def __repr__(self):
+		return '{}: '.format(self.__class__.__name__,
+			self.__period,
+			self.__unit,
+			self.__name
+			self.__type,
+			self.__times,
+			self.__pointsSR,
+			self.__rankingSR,
+			)
 
+	def __cmp__(self, other):
+		return self.get_event_startdate().__cmp__(other.get_event_startdate())
+	
 	def get_event_name(self):
 		return self.__name
 
@@ -136,9 +146,7 @@ class EventManager(object):
 	def __init__(self):
 		self.__eventtypes = EVENTTYPES
 		self.__events = {}
-		self.__oldest_startdate = None
-		self.__latest_startdate = None
-
+		
 	def has_eventtype(self, etype):
 		return etype in self.__eventtypes
 
@@ -159,16 +167,6 @@ class EventManager(object):
 			self.__events[startdate] = event
 			if etype not in self.__eventtypes:
 				self.__eventtypes.append(etype)
-
-		# update the min/max events in terms of startdate, i.e. keys
-		if not self.__oldest_startdate:
-			self.__oldest_startdate = startdate
-		elif self.__oldest_startdate > startdate:
-			self.__oldest_startdate = startdate
-		if not self.__latest_startdate:
-			self.__latest_startdate = startdate
-		elif self.__latest_startdate < startdate:
-			self.__latest_startdate = startdate
 
 	def get_events(self, etype):
 		events = {}
@@ -220,15 +218,128 @@ class EventManager(object):
 			event = events[key]
 			print("%s %s %s: %d" % (key, event.get_event_name(), event.get_event_type(), event.get_event_times()))
 
-def main():
-	
-	# update local parsed file if necessary
-	os.system("python parse.py")
+class Member(object):
+	"""docstring for Member"""
+	def __init__(self, name, grade, birthday, age):
+		super(Member, self).__init__()
+		self.__name = name
+		self.__fullname = mp.nameMap2Fullname[name]
+		self.__grade = grade
+		self.__birthday = birthday 	# no comarison needed, thus OK to just store in the format of string in the character profile
+		self.__age = age
+		self.__cardpool = {'R': {}, 'SR': {}, 'SSR': {}, 'UR': {}}
 
-	eventmanager = EventManager()
+	def __repr__(self):
+		return '{}: |{}|{}|{}|{}|{}|{}|{}|'.format(self.__class__.__name__,
+			self.__fullname,
+			' ' * (16 - len(self.__fullname)),
+			self.__grade,
+			' ' * (10 - len(self.__grade)),
+			self.__birthday,
+			' ' * (16 - len(self.__birthday)),
+			self.get_cards_number())
+
+	def add_card(self, card):
+		rank = card.rank
+		cardid = card.id
+		if cardid in self.__cardpool[rank]:
+			raise RuntimeError('Member add new card error: Duplicate card id')
+		else:
+			self.__cardpool[rank][cardid] = card
+
+	def get_cards(self, cardid=None, rank=None, attribute=None):
+		if cardid != None and type(cardid) != int:
+			raise RuntimeError('Get member cards error: invalid cardid type %s' % type(cardid))
+
+		cards = {}
+		if cardid:
+			for rank in self.__cardpool:
+				if cardid in self.__cardpool[rank]:
+					cards[cardid] = self.__cardpool[rank][cardid]
+					break
+			if len(cards) and (rank or attribute):
+				if rank:
+					if cards[cardid].rank != rank:
+						cards = {}
+				if attribute:
+					if cards[cardid].attribute != attribute:
+						cards = {}
+		else:
+			# no cardid specified, return all cards matching rank and attribute if given
+			if rank and attribute:
+				for cardid in self.__cardpool[rank]:
+					card = self.__cardpool[rank][cardid]
+					if card.attribute == attribute:
+						cards[cardid] = card
+			elif rank and not attribute:
+				cards = self.__cardpool[rank]
+			elif not rank and attribute:
+				for rank in self.__cardpool:
+					for cardid in self.__cardpool[rank]:
+						card = self.__cardpool[rank][cardid]
+						if card.attribut == attribute:
+							cards[cardid] = card
+			else:
+				print('No cardid, rank, or attributed specified to pick cards. Nothing can be selected.')
+
+		return cards
+
+	def get_cards_number(self):
+		return 'R: %d, SR: %d, SSR: %d, UR: %d' % (len(self.__cardpool['R']), len(self.__cardpool['SR']), len(self.__cardpool['SSR']), len(self.__cardpool['UR']))
+
+	def get_name(self):
+		return self.__name
+
+	def get_grade(self):
+		return self.__grade
+
+	def get_birthday(self):
+		return self.__birthday
+
+class MemberManager(object):
+	"""docstring for MemberManager"""
+	def __init__(self):
+		super(MemberManager, self).__init__()
+		self.__members = {}
+
+	def add_member(self, memeber):
+		name = memeber.get_name()
+		if name in self.__members:
+			raise RuntimeError('Add member error: Duplicate member')
+		else:
+			self.__members[name] = memeber
+
+	def loaded_member(self, name):
+		return name in self.__members
+
+	def get_member(self, name):
+		try:
+			return self.__members[name]
+		except:
+			return None
+		
+def get_options():
+	# handle arguments
+	parser = argparse.ArgumentParser(description='SIF events analyzer.')
+	parser.add_argument('genere', nargs='?', default='event', help='analyzer genere', choices=['event', 'member'])
+	parser.add_argument('-v', '--version', action='version', version='%(prog)s 1.0')
+	parser.add_argument('-T', '--type', help='event: get all events by event or unit type')
+	parser.add_argument('-B', '--month', metavar='M', default=12, help='event: the number of latest months to investigate')
+	parser.add_argument('-P', '--patern', action='store_true', help='event: show latest 12 months events pattern')
+	parser.add_argument('-t', '--test', action='store_true', help='event: run eventmanager\' test methods')
+	parser.add_argument('-m', '--member', metavar='name', nargs='*', default=[], choices=US+AQOURS, help='member: specify a member to perform further quries using member info only related to this memeber.')
+	parser.add_argument('-b', '--birthday', nargs='+', choices=US+AQOURS, help='member: display birthday of (a) member(s)')
+	parser.add_argument('-c', '--card', nargs='+', help='select member cards by rank or cardid or attribute')
+
+	args = parser.parse_args()
+
+	return args
+
+def load_events(manager):
 	with codecs.open(PARSEDFILE, 'r', encoding='utf-8') as f:
 		header = f.readline().split('\n')[0]
-		print("%s (%d)" % (header.replace(';', ' |'), len(header.split(';'))))
+		print("Loading events ...")
+		# print("%s" % (header.replace(';', ' |')))
 
 		# bring lines in chronological order, for counting times of collection event only
 		lines = []
@@ -248,31 +359,133 @@ def main():
 				collectioneventcnt += 1
 				event.set_event_times(collectioneventcnt)
 
-			eventmanager.add_event(event)
+			manager.add_event(event)
 
-		# eventmanager.test()
+def load_member(manager, name):
+	if not name in US+AQOURS:
+		raise RuntimeError('Load member error: invalid member name %s' % name)
+
+	fullname = mp.nameMap2Fullname[name]
+	profilefile = os.path.join('member', fullname + MEMBERPROFILESUFFIX)	# profile is of xml
+	cardfile = os.path.join('member', fullname + '.txt')
+
+	# basic info
+	print('\nLoading %s\'s basic info ...' % name)
+	profile = ET.parse(profilefile).getroot()
+	age = profile[1].text
+	birthday = profile[2].text
+	grade = re.search(r'\s(\w+-year)\s', profile[-1].text).group(1).replace('-', ' ').replace('first', '1st').replace('second', '2nd').replace('third', '3rd').replace('year', 'Year')
 	
-	# handle arguments
-	parser = argparse.ArgumentParser(description='SIF events analyzer.')
-	parser.add_argument('-v', '--version', action='version', version='%(prog)s 1.0')
-	parser.add_argument('-T', '--type', help='get all events by event or unit type')
-	parser.add_argument('-p', '--patern', action='store_true', help='show latest 12 months events pattern')
-	parser.add_argument('-m', '--month', help='the number of latest months to investigate')
-	parser.add_argument('-t', '--test', action='store_true', help='run eventmanager\' test methods')
+	member = Member(name, grade, birthday, age)
 
-	args = parser.parse_args()
+	# card
+	with open(cardfile, 'rU') as f:
+		# print('\nLoading %s\'s cards ...' % name)
+		header = f.readline().strip().replace(';', ' | ')
+		# print(header + '\n')
 
-	if args.patern:
-		eventmanager.get_event_pattern(months=args.month)
+		for line in f:
+			cardid, rank, attribute, smile, pure, cool, skill, effect, leaderskill, leadereffect, version, releasedate = \
+				line.strip().split(';')
+			# print(cardid, rank, attribute, smile, pure, cool, skill, effect, leaderskill, leadereffect, version, releasedate)
 
-	if args.type:
-		events = eventmanager.get_events(args.type)
-		for startdate in sorted(events.keys()):
-			event = events[startdate]
-			print('%s %s %s %s' % (startdate, event.get_event_unit(), event.get_event_name(), event.get_event_times() if event.get_event_type() == 'Collection Event' else ''))
+			if rank == 'Rare':
+				card = RCard(cardid, name, attribute, smile, pure, cool, skill, effect, leaderskill, leadereffect, version, releasedate)
+			if rank == 'Super Rare':
+				card = SRCard(cardid, name, attribute, smile, pure, cool, skill, effect, leaderskill, leadereffect, version, releasedate)
+			if rank == 'Super Super Rare':
+				card = SSRCard(cardid, name, attribute, smile, pure, cool, skill, effect, leaderskill, leadereffect, version, releasedate)
+			if rank == 'Ultra Rare' and version != 'pretransformed':
+				card = URCard(cardid, name, attribute, smile, pure, cool, skill, effect, leaderskill, leadereffect, version, releasedate)
+			if rank == 'Ultra Rare' and version == 'pretransformed':
+				card = URGiftCard(cardid, name, attribute, smile, pure, cool, skill, effect, leaderskill, leadereffect, version, releasedate)
+			
+			member.add_card(card)
 
-	if args.test:
-		eventmanager.test()
+	manager.add_member(member)
+
+def main():
+	
+	args = get_options()
+
+	if args.genere == 'event':
+
+		# update local parsed file if necessary
+		os.system("python parse.py")
+
+		eventmanager = EventManager()
+		load_events(eventmanager)
+
+		if args.patern:
+			eventmanager.get_event_pattern(months=args.month)
+
+		if args.type:
+			events = eventmanager.get_events(args.type)
+			for startdate in sorted(events.keys()):
+				event = events[startdate]
+				print('%s %s %s %s' % (startdate, event.get_event_unit(), event.get_event_name(), event.get_event_times() if event.get_event_type() == 'Collection Event' else ''))
+
+		if args.test:
+			eventmanager.test()
+
+	if args.genere == 'member':
+
+		if args.member or args.birthday or args.card:
+			mp.init()
+			membermanager = MemberManager()
+		else:
+			return
+
+		# update local pasrsed file if necessary
+		for member in args.member:
+			mp.fetchwebpage(member)
+			mp.parse(member)
+
+			load_member(membermanager, member)
+
+		if args.birthday:
+			for name in args.birthday:
+				if not name in args.member:
+					mp.parse(name)
+					load_member(membermanager, name)
+
+				birthday = membermanager.get_member(name).get_birthday()
+				print('%s\t%s' % (name, birthday))
+
+		if args.card:
+			name = None
+			attribute = None
+			rank = None
+			cardid = None
+
+			for cardarg in args.card:
+				if cardarg in US+AQOURS:
+					name = cardarg
+				if cardarg[0] == '#':
+					cardid = int(cardarg[1:])
+				if cardarg in CARDATTRIBUTES:
+					attribute = cardarg
+				if cardarg in CARDRANKS:
+					rank = cardarg
+
+			print('selecting cards with (name=%s, cardid=%s, rank=%s, attribute=%s)' % (name, cardid, rank, attribute))
+
+			if name in US+AQOURS:
+				if not membermanager.loaded_member(name):
+					mp.fetchwebpage(name)
+					mp.parse(name)
+					load_member(membermanager, name)
+
+				cards = membermanager.get_member(name).get_cards(cardid, rank, attribute)
+				print('Found %d %s %s %s card(s)%s.' % (len(cards), attribute if attribute else '', rank if rank else '', name, 'width id #' + str(cardid) if cardid else ''))
+
+				for card in sorted(cards.values(), reverse=True):
+					print(card)
+			else:
+				print('Get member cards error: invalid member name "%s".' % name)
+
+
+		# print(args)
 
 if __name__ == '__main__':
 	main()
