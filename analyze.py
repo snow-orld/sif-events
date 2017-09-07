@@ -20,6 +20,7 @@ import argparse
 import urllib
 import sys
 import xml.etree.ElementTree as ET
+import calendar
 
 from constants import *
 from classes import *
@@ -36,6 +37,18 @@ class Period(object):
 		self.__startdate = date(year, month, day)
 		year, month, day = [int(e) for e in end.split('/')]
 		self.__enddate = date(year, month, day)
+
+	def __repr__(self):
+		return '{}: {}/{}/{} - {}/{}/{}'.format(self.__class__.__name__,
+			self.__startdate.year,
+			self.__startdate.month,
+			self.__startdate.day,
+			self.__enddate.year,
+			self.__enddate.month,
+			self.__enddate.day)
+
+	def __cmp__(self, other):
+		return self.get_startdate().__cmp__(other.get_startdate())
 
 	def get_startdate(self):
 		return self.__startdate
@@ -227,9 +240,15 @@ class Member(object):
 		self.__name = name
 		self.__fullname = mp.nameMap2Fullname[name]
 		self.__grade = grade
-		self.__birthday = birthday 	# no comarison needed, thus OK to just store in the format of string in the character profile
 		self.__age = age
 		self.__cardpool = {'R': {}, 'SR': {}, 'SSR': {}, 'UR': {}}
+
+		# birthday string from character profile needs futher parsing to format date
+		month2num = {name: num for num, name in enumerate(calendar.month_name) if num}
+		match = re.search(r'(^\w+)\W(\d+)[a-z]*\W', birthday)
+		month = int(month2num[match.group(1)])
+		day = int(match.group(2))
+		self.__birthday = date(date.today().year, month, day)
 
 	def __repr__(self):
 		return '{}: |{}|{}|{}|{}|{}|{}|{}|'.format(self.__class__.__name__,
@@ -240,6 +259,32 @@ class Member(object):
 			self.__birthday,
 			' ' * (16 - len(self.__birthday)),
 			self.get_cards_number())
+
+	def load_events(self):
+		with codecs.open(PARSEDFILE, 'r', encoding='utf-8') as f:
+			header = f.readline().split('\n')[0]
+			print("Loading events ...")
+			# print("%s" % (header.replace(';', ' |')))
+
+			# bring lines in chronological order, for counting times of collection event only
+			lines = []
+			for line in f:
+				lines.append(line)
+			lines.reverse()
+
+			collectioneventcnt = 0
+			for line in lines:
+				period, name, eventlink, pointsSR, pointsSRLink, rankingSR, rankingSRLink, point_cutoff_1, rank_cutoff_1, point_cutoff_2, rank_cutoff_2, point_cutoff_3,rank_cutoff_3, note = line.strip().split(u';')
+				# print("%s | %s %s\n%s %s\n%s %s \n%s | %s | %s | %s | %s | %s\n%s" % (period, name, eventlink, pointsSR, pointsSRLink, rankingSR, rankingSRLink, point_cutoff_1, rank_cutoff_1, point_cutoff_2, rank_cutoff_2, point_cutoff_3,rank_cutoff_3, note))
+
+				event = Event(period, name, eventlink, pointsSR, pointsSRLink, rankingSR, rankingSRLink, point_cutoff_1, rank_cutoff_1, point_cutoff_2, rank_cutoff_2, point_cutoff_3,rank_cutoff_3, note)
+				# print("%s, %s %d" % (period, event.get_event_type(), event.get_event_times()))
+
+				if event.get_event_type() == EVENTTYPES[0]:
+					collectioneventcnt += 1
+					event.set_event_times(collectioneventcnt)
+
+				self.add_event(event)
 
 	def add_card(self, card):
 		rank = card.rank
@@ -308,6 +353,49 @@ class MemberManager(object):
 	def __init__(self):
 		super(MemberManager, self).__init__()
 		self.__members = {}
+	
+	def load_member(self, name):
+		if not name in US+AQOURS:
+			raise RuntimeError('Load member error: invalid member name %s' % name)
+
+		fullname = mp.nameMap2Fullname[name]
+		profilefile = os.path.join('member', fullname + MEMBERPROFILESUFFIX)	# profile is of xml
+		cardfile = os.path.join('member', fullname + '.txt')
+
+		# basic info
+		print('Loading %s\'s basic info ...' % name)
+		profile = ET.parse(profilefile).getroot()
+		age = profile[1].text
+		birthday = profile[2].text
+		grade = re.search(r'\s(\w+-year)\s', profile[-1].text).group(1).replace('-', ' ').replace('first', '1st').replace('second', '2nd').replace('third', '3rd').replace('year', 'Year')
+		
+		member = Member(name, grade, birthday, age)
+
+		# card
+		with open(cardfile, 'rU') as f:
+			# print('\nLoading %s\'s cards ...' % name)
+			header = f.readline().strip().replace(';', ' | ')
+			# print(header + '\n')
+
+			for line in f:
+				cardid, rank, attribute, smile, pure, cool, skill, effect, leaderskill, leadereffect, version, releasedate = \
+					line.strip().split(';')
+				# print(cardid, rank, attribute, smile, pure, cool, skill, effect, leaderskill, leadereffect, version, releasedate)
+
+				if rank == 'Rare':
+					card = RCard(cardid, name, attribute, smile, pure, cool, skill, effect, leaderskill, leadereffect, version, releasedate)
+				if rank == 'Super Rare':
+					card = SRCard(cardid, name, attribute, smile, pure, cool, skill, effect, leaderskill, leadereffect, version, releasedate)
+				if rank == 'Super Super Rare':
+					card = SSRCard(cardid, name, attribute, smile, pure, cool, skill, effect, leaderskill, leadereffect, version, releasedate)
+				if rank == 'Ultra Rare' and version != 'pretransformed':
+					card = URCard(cardid, name, attribute, smile, pure, cool, skill, effect, leaderskill, leadereffect, version, releasedate)
+				if rank == 'Ultra Rare' and version == 'pretransformed':
+					card = URGiftCard(cardid, name, attribute, smile, pure, cool, skill, effect, leaderskill, leadereffect, version, releasedate)
+				
+				member.add_card(card)
+
+		self.add_member(member)
 
 	def add_member(self, memeber):
 		name = memeber.get_name()
@@ -324,7 +412,27 @@ class MemberManager(object):
 			return self.__members[name]
 		except:
 			return None
-		
+
+	def get_coming_birthday(self, months=None):
+		# show birthday in the coming year starting from today if months not specified, or
+		# show birthday in given months, which is array of integer from 1 to 12
+		today = date.today()
+		birthdays = []
+		for name in US+AQOURS:
+			if not self.loaded_member(name):
+				mp.parse(name)
+				self.load_member(name)
+
+			birthday = self.get_member(name).get_birthday()
+
+			if birthday < today:
+				birthday = birthday.replace(year=today.year + 1)
+
+			if not months or (months and birthday.month in months):
+				birthdays.append((name, birthday))
+
+		return sorted(birthdays, key=lambda name2birthday: name2birthday[1])
+
 def get_options():
 	# handle arguments
 	parser = argparse.ArgumentParser(description='SIF events analyzer.')
@@ -335,7 +443,9 @@ def get_options():
 	parser.add_argument('-P', '--patern', action='store_true', help='event: show latest 12 months events pattern')
 	parser.add_argument('-t', '--test', action='store_true', help='event: run eventmanager\' test methods')
 	parser.add_argument('-m', '--member', metavar='name', nargs='*', default=[], choices=US+AQOURS, help='member: pre-load members\' files to perform further quries')
-	parser.add_argument('-b', '--birthday', nargs='+', choices=US+AQOURS, help='member: display birthday of (a) member(s)')
+	parser.add_argument('-b', '--birthday', action='store_true', help='member: show birthday, more fine granularity control with --birthday-xxx options')
+	parser.add_argument('--birthday-member', nargs='+', choices=US+AQOURS+['a','all'], help='member: display birthday of (a) member(s)')
+	parser.add_argument('--birthday-month', nargs='+', choices=list(calendar.month_name)+list(calendar.month_abbr), help='member: show member with birthday in speicified month')
 	parser.add_argument('-c', '--card', nargs='+', help='member: select member cards by rank or cardid or attribute')
 	parser.add_argument('--before-date', help='if specified, only events or cards before specified date is investigated')
 	parser.add_argument('--after-date', help='if specified, only events or cards after specified date is investigated ')
@@ -355,74 +465,6 @@ def parse_date(datestring):
 	else:
 		raise RuntimeError('Parse date error: invalid date format "{}"'.format(datestring))
 
-def load_events(manager):
-	with codecs.open(PARSEDFILE, 'r', encoding='utf-8') as f:
-		header = f.readline().split('\n')[0]
-		print("Loading events ...")
-		# print("%s" % (header.replace(';', ' |')))
-
-		# bring lines in chronological order, for counting times of collection event only
-		lines = []
-		for line in f:
-			lines.append(line)
-		lines.reverse()
-
-		collectioneventcnt = 0
-		for line in lines:
-			period, name, eventlink, pointsSR, pointsSRLink, rankingSR, rankingSRLink, point_cutoff_1, rank_cutoff_1, point_cutoff_2, rank_cutoff_2, point_cutoff_3,rank_cutoff_3, note = line.strip().split(u';')
-			# print("%s | %s %s\n%s %s\n%s %s \n%s | %s | %s | %s | %s | %s\n%s" % (period, name, eventlink, pointsSR, pointsSRLink, rankingSR, rankingSRLink, point_cutoff_1, rank_cutoff_1, point_cutoff_2, rank_cutoff_2, point_cutoff_3,rank_cutoff_3, note))
-
-			event = Event(period, name, eventlink, pointsSR, pointsSRLink, rankingSR, rankingSRLink, point_cutoff_1, rank_cutoff_1, point_cutoff_2, rank_cutoff_2, point_cutoff_3,rank_cutoff_3, note)
-			# print("%s, %s %d" % (period, event.get_event_type(), event.get_event_times()))
-
-			if event.get_event_type() == EVENTTYPES[0]:
-				collectioneventcnt += 1
-				event.set_event_times(collectioneventcnt)
-
-			manager.add_event(event)
-
-def load_member(manager, name):
-	if not name in US+AQOURS:
-		raise RuntimeError('Load member error: invalid member name %s' % name)
-
-	fullname = mp.nameMap2Fullname[name]
-	profilefile = os.path.join('member', fullname + MEMBERPROFILESUFFIX)	# profile is of xml
-	cardfile = os.path.join('member', fullname + '.txt')
-
-	# basic info
-	print('\nLoading %s\'s basic info ...' % name)
-	profile = ET.parse(profilefile).getroot()
-	age = profile[1].text
-	birthday = profile[2].text
-	grade = re.search(r'\s(\w+-year)\s', profile[-1].text).group(1).replace('-', ' ').replace('first', '1st').replace('second', '2nd').replace('third', '3rd').replace('year', 'Year')
-	
-	member = Member(name, grade, birthday, age)
-
-	# card
-	with open(cardfile, 'rU') as f:
-		# print('\nLoading %s\'s cards ...' % name)
-		header = f.readline().strip().replace(';', ' | ')
-		# print(header + '\n')
-
-		for line in f:
-			cardid, rank, attribute, smile, pure, cool, skill, effect, leaderskill, leadereffect, version, releasedate = \
-				line.strip().split(';')
-			# print(cardid, rank, attribute, smile, pure, cool, skill, effect, leaderskill, leadereffect, version, releasedate)
-
-			if rank == 'Rare':
-				card = RCard(cardid, name, attribute, smile, pure, cool, skill, effect, leaderskill, leadereffect, version, releasedate)
-			if rank == 'Super Rare':
-				card = SRCard(cardid, name, attribute, smile, pure, cool, skill, effect, leaderskill, leadereffect, version, releasedate)
-			if rank == 'Super Super Rare':
-				card = SSRCard(cardid, name, attribute, smile, pure, cool, skill, effect, leaderskill, leadereffect, version, releasedate)
-			if rank == 'Ultra Rare' and version != 'pretransformed':
-				card = URCard(cardid, name, attribute, smile, pure, cool, skill, effect, leaderskill, leadereffect, version, releasedate)
-			if rank == 'Ultra Rare' and version == 'pretransformed':
-				card = URGiftCard(cardid, name, attribute, smile, pure, cool, skill, effect, leaderskill, leadereffect, version, releasedate)
-			
-			member.add_card(card)
-
-	manager.add_member(member)
 
 def main():
 	
@@ -441,7 +483,7 @@ def main():
 		os.system("python parse.py")
 
 		eventmanager = EventManager()
-		load_events(eventmanager)
+		eventmanager.load_events()
 
 		if args.patern:
 			eventmanager.get_event_pattern(months=args.month)
@@ -468,16 +510,45 @@ def main():
 			mp.fetchwebpage(member)
 			mp.parse(member)
 
-			load_member(membermanager, member)
+			membermanager.load_member(member)
 
 		if args.birthday:
-			for name in args.birthday:
-				if not name in args.member:
-					mp.parse(name)
-					load_member(membermanager, name)
+			if not args.birthday_member and not args.birthday_month:
+				print('Get member birthday information.\nUsage: %s member -b --birthday-member [name [name...]] or --birthday-month [month [month ...]]' % __file__)
 
-				birthday = membermanager.get_member(name).get_birthday()
-				print('%s\t%s' % (name, birthday))
+			elif args.birthday_member:
+				if 'a' in args.birthday_member or 'all' in args.birthday_member:
+					birthdaylist = membermanager.get_coming_birthday()
+					# returned in format [('name', 'birthday'), ...]
+					print('\nUpcoming birthdays ...')
+					for name, birthday in birthdaylist:
+						print('%s  %s' % (birthday, name))
+				else:
+					for name in args.birthday:
+						if not name in args.member:
+							mp.parse(name)
+							membermanager.load_member(name)
+
+						# birthday in type date, in current year
+						birthday = membermanager.get_member(name).get_birthday()
+						print('%s  %s' % (birthday, name))
+			elif args.birthday_month:
+				months = set()
+				
+				# pre-parsing Abbreviate or Fullname month to integer from 1 to 12
+				monthall2num = {abbr: num for num, abbr in enumerate(calendar.month_abbr) if num}
+				for num, name in enumerate(calendar.month_name):
+					if num:
+						monthall2num[name] = num
+
+				for month in args.birthday_month:
+					months.add(monthall2num[month])
+
+				# returned in format [('name', 'birthday'), ...]
+				birthdaylist = membermanager.get_coming_birthday(months)
+				print('\n%d member(s) with Birthday in %s' % (len(birthdaylist), args.birthday_month))
+				for name, birthday in birthdaylist:
+					print('%s  %s' % (birthday, name))
 
 		if args.card:
 			name = None
@@ -510,9 +581,6 @@ def main():
 					print(card)
 			else:
 				print('Get member cards error: invalid member name "%s".' % name)
-
-
-		# print(args)
 
 if __name__ == '__main__':
 	main()
