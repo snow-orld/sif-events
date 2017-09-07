@@ -160,6 +160,32 @@ class EventManager(object):
 		self.__eventtypes = EVENTTYPES
 		self.__events = {}
 		
+	def load_events(self):
+		with codecs.open(PARSEDFILE, 'r', encoding='utf-8') as f:
+			header = f.readline().split('\n')[0]
+			print("Loading events ...")
+			# print("%s" % (header.replace(';', ' |')))
+
+			# bring lines in chronological order, for counting times of collection event only
+			lines = []
+			for line in f:
+				lines.append(line)
+			lines.reverse()
+
+			collectioneventcnt = 0
+			for line in lines:
+				period, name, eventlink, pointsSR, pointsSRLink, rankingSR, rankingSRLink, point_cutoff_1, rank_cutoff_1, point_cutoff_2, rank_cutoff_2, point_cutoff_3,rank_cutoff_3, note = line.strip().split(u';')
+				# print("%s | %s %s\n%s %s\n%s %s \n%s | %s | %s | %s | %s | %s\n%s" % (period, name, eventlink, pointsSR, pointsSRLink, rankingSR, rankingSRLink, point_cutoff_1, rank_cutoff_1, point_cutoff_2, rank_cutoff_2, point_cutoff_3,rank_cutoff_3, note))
+
+				event = Event(period, name, eventlink, pointsSR, pointsSRLink, rankingSR, rankingSRLink, point_cutoff_1, rank_cutoff_1, point_cutoff_2, rank_cutoff_2, point_cutoff_3,rank_cutoff_3, note)
+				# print("%s, %s %d" % (period, event.get_event_type(), event.get_event_times()))
+
+				if event.get_event_type() == EVENTTYPES[0]:
+					collectioneventcnt += 1
+					event.set_event_times(collectioneventcnt)
+
+				self.add_event(event)
+
 	def has_eventtype(self, etype):
 		return etype in self.__eventtypes
 
@@ -259,32 +285,6 @@ class Member(object):
 			self.__birthday,
 			' ' * (16 - len(self.__birthday)),
 			self.get_cards_number())
-
-	def load_events(self):
-		with codecs.open(PARSEDFILE, 'r', encoding='utf-8') as f:
-			header = f.readline().split('\n')[0]
-			print("Loading events ...")
-			# print("%s" % (header.replace(';', ' |')))
-
-			# bring lines in chronological order, for counting times of collection event only
-			lines = []
-			for line in f:
-				lines.append(line)
-			lines.reverse()
-
-			collectioneventcnt = 0
-			for line in lines:
-				period, name, eventlink, pointsSR, pointsSRLink, rankingSR, rankingSRLink, point_cutoff_1, rank_cutoff_1, point_cutoff_2, rank_cutoff_2, point_cutoff_3,rank_cutoff_3, note = line.strip().split(u';')
-				# print("%s | %s %s\n%s %s\n%s %s \n%s | %s | %s | %s | %s | %s\n%s" % (period, name, eventlink, pointsSR, pointsSRLink, rankingSR, rankingSRLink, point_cutoff_1, rank_cutoff_1, point_cutoff_2, rank_cutoff_2, point_cutoff_3,rank_cutoff_3, note))
-
-				event = Event(period, name, eventlink, pointsSR, pointsSRLink, rankingSR, rankingSRLink, point_cutoff_1, rank_cutoff_1, point_cutoff_2, rank_cutoff_2, point_cutoff_3,rank_cutoff_3, note)
-				# print("%s, %s %d" % (period, event.get_event_type(), event.get_event_times()))
-
-				if event.get_event_type() == EVENTTYPES[0]:
-					collectioneventcnt += 1
-					event.set_event_times(collectioneventcnt)
-
-				self.add_event(event)
 
 	def add_card(self, card):
 		rank = card.rank
