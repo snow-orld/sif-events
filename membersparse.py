@@ -4,7 +4,7 @@
 @file    membersparse.py
 @author  Cecilia M.
 @date    2017-09-02
-@version $Id: membersparse.py 04 2017-09-05 16:45: behrisch $
+@version $Id: membersparse.py 04 2017-09-07 11:44: behrisch $
 
 This script acts as a web crawler to aggregate all members'
 info of Japanese version from the wiki page
@@ -122,11 +122,14 @@ def parse(name=None, write=False):
 	basicfile = os.path.join(MEMBERFOLDER, fullname + MEMBERPROFILESUFFIX)	# a xml file
 	parsedfile = os.path.join(MEMBERFOLDER, fullname + '.txt')
 	
+	if not os.path.exists(htmlfile):
+		fetchwebpage(name)
+
 	membersoup = BeautifulSoup(codecs.open(htmlfile, 'r', encoding='utf-8-sig'), "html.parser")
 
 	# member basic info file, only created once
 	if not os.path.exists(basicfile) or os.stat(basicfile).st_size == 0L:
-		print('\nParsing %s\'s character profile to %s ...' % (fullname, fullname + MEMBERPROFILESUFFIX))
+		print('Parsing %s\'s character profile to %s ...' % (fullname, fullname + MEMBERPROFILESUFFIX))
 
 		with codecs.open(basicfile, 'w', encoding='utf-8') as f:
 			f.write(XMLHEADER + '\n')
@@ -137,7 +140,7 @@ def parse(name=None, write=False):
 			f.write('</characterprofile>\n')
 
 	if not os.path.exists(parsedfile) or os.stat(parsedfile).st_size == 0L or os.path.getmtime(htmlfile) > os.path.getmtime(parsedfile):
-		print('\nParsing %s\'s cards profile to %s ...' % (fullname, fullname + '.txt'))
+		print('Parsing %s\'s cards profile to %s ...' % (fullname, fullname + '.txt'))
 		
 		# parse cards - find all tags between #Cards and #Side_Stories
 		tags = []
@@ -219,9 +222,12 @@ def parse(name=None, write=False):
 					elif releasetext.find('Exchanged') > -1:
 						releasedate = releasetext[7:]
 					elif releasetext.find('Added to Seal Shop on') > -1:
-						match = re.search(r'Added to Seal Shop on (\w+ \d+, \d+)\.', releasetext)
-						timestamp = time.mktime(time.strptime(match.group(1), '%B %d, %Y'))
-						releasedate = date.fromtimestamp(timestamp)
+						match = re.search(r'Added to Seal Shop on (\w+ \d+, \d+)\W+', releasetext)
+						try:
+							timestamp = time.mktime(time.strptime(match.group(1), '%B %d, %Y'))
+							releasedate = date.fromtimestamp(timestamp)
+						except:
+							print(releasetext)
 					elif releasetext.find('Awarded') > -1:
 						releasedate = releasetext[7:]
 					else:
