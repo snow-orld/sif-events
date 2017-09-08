@@ -4,7 +4,7 @@
 @file    membersparse.py
 @author  Cecilia M.
 @date    2017-09-02
-@version $Id: membersparse.py 04 2017-09-07 11:44: behrisch $
+@version $Id: membersparse.py 04 2017-09-08 18:51: behrisch $
 
 This script acts as a web crawler to aggregate all members'
 info of Japanese version from the wiki page
@@ -27,6 +27,7 @@ import time
 from constants import *
 
 MEMBERFOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'member')
+IMAGEFOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'member', 'img')
 nameMap2Fullname = {}	# map from given name to full name, key is given name
 memberurls = {}			# key is full name, e.g., Ayase Eli
 pointSR = ''
@@ -71,6 +72,8 @@ def init():
 
 	if not os.path.exists(MEMBERFOLDER):
 		os.mkdir(MEMBERFOLDER)
+	if not os.path.exists(IMAGEFOLDER):
+		os.mkdir(IMAGEFOLDER)
 
 	lasteventrow = soup.findAll('tr')[2]
 	ths = lasteventrow.findAll('td')
@@ -106,6 +109,21 @@ def li2xml(li):
 	tag = li.b.string.split(':')[0].replace(' ', '_')
 	context = li.text.split(':')[1].strip()
 	return '%s<%s>%s</%s>\n' % ('	', tag, context, tag)
+
+def fetchimagelink(imageurl):
+	# the image url is extracted from member page, which points to a wiki page showing the detail
+	# average file the imageurl directs to is ~2-3M, slow for parsing all cards of one member
+	try:
+		req = requests.get(imageurl, stream=True)
+	except requests.exceptions.ConnectionError:
+		print('Connection Failed. Failed to download image %s.' % url)
+		sys.exit(1)
+	soup = BeautifulSoup(req.content, 'html.parser')
+	link = soup.find('div', id='file').a['href']
+	
+	del soup
+
+	return link
 
 def parse(name=None, write=False):
 	if name == None:
@@ -154,7 +172,7 @@ def parse(name=None, write=False):
 
 		with codecs.open(parsedfile, 'w', encoding='utf-8') as f:
 			# write csv header
-			f.write('cardid;rank;attribute;smile;pure;cool;skill;effect;leaderskill;leadereffect;version;realeasedate')
+			f.write('cardid;rank;attribute;normalimagelink;idolizedimagelink;smile;pure;cool;skill;effect;leaderskill;leadereffect;version;realeasedate')
 
 			rank = ''	# current rank for current cards, since rank appears before all cards under it
 			isprevdate = True	# each release date coming after one card if any, a flag to show whether the last row is a release date
@@ -174,8 +192,14 @@ def parse(name=None, write=False):
 					# print(version.encode('cp932', 'ignore').decode('cp932'))
 					
 					# row[1] - two images (3 row/each), Max level: 60(4 col)
+					images = rows[1].findAll('td')[:2]
+					normalimagelink = 'N/A'
 					if rows[1].td.text.find('This card comes pre') > -1:
 						version = 'pretransformed'
+					else:
+						# normalimagelink = fetchimagelink(BASEURL+images[0].a['href'])
+						normalimagelink = BASEURL+images[0].a['href']
+					idolizedimagelink = BASEURL+images[1].a['href']
 
 					# row[2] - hp, smile, pure, cool
 					smile, pure, cool = [int(td.span.string) for td in rows[2].findAll('td')[1:]]
@@ -193,7 +217,7 @@ def parse(name=None, write=False):
 					if not isprevdate:
 						f.write('N/A')	# last card's release date is not specified, give it a N/A
 
-					f.write('\n%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;' % (cardid, rank, attribute, smile, pure, cool, skill, effect, leaderskill, leadereffect, version))
+					f.write('\n%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;%s;' % (cardid, rank, attribute, normalimagelink, idolizedimagelink, smile, pure, cool, skill, effect, leaderskill, leadereffect, version))
 
 					isprevdate = False
 

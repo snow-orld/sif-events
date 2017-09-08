@@ -4,7 +4,7 @@
 @file    analyze.py
 @author  Cecilia M.
 @date    2017-08-30
-@version $Id: analyze.py 03 2017-09-06 18:22: behrisch $
+@version $Id: analyze.py 04 2017-09-08 18:51: behrisch $
 
 This script analyzes the past events of Japanese version 
 based on a local parsed file with info from the wiki page
@@ -378,20 +378,20 @@ class MemberManager(object):
 			# print(header + '\n')
 
 			for line in f:
-				cardid, rank, attribute, smile, pure, cool, skill, effect, leaderskill, leadereffect, version, releasedate = \
+				cardid, rank, attribute, normalimagelink, idolizedimagelink, smile, pure, cool, skill, effect, leaderskill, leadereffect, version, releasedate = \
 					line.strip().split(';')
 				# print(cardid, rank, attribute, smile, pure, cool, skill, effect, leaderskill, leadereffect, version, releasedate)
 
 				if rank == 'Rare':
-					card = RCard(cardid, name, attribute, smile, pure, cool, skill, effect, leaderskill, leadereffect, version, releasedate)
+					card = RCard(cardid, name, attribute, normalimagelink, idolizedimagelink, smile, pure, cool, skill, effect, leaderskill, leadereffect, version, releasedate)
 				if rank == 'Super Rare':
-					card = SRCard(cardid, name, attribute, smile, pure, cool, skill, effect, leaderskill, leadereffect, version, releasedate)
+					card = SRCard(cardid, name, attribute, normalimagelink, idolizedimagelink, smile, pure, cool, skill, effect, leaderskill, leadereffect, version, releasedate)
 				if rank == 'Super Super Rare':
-					card = SSRCard(cardid, name, attribute, smile, pure, cool, skill, effect, leaderskill, leadereffect, version, releasedate)
+					card = SSRCard(cardid, name, attribute, normalimagelink, idolizedimagelink, smile, pure, cool, skill, effect, leaderskill, leadereffect, version, releasedate)
 				if rank == 'Ultra Rare' and version != 'pretransformed':
-					card = URCard(cardid, name, attribute, smile, pure, cool, skill, effect, leaderskill, leadereffect, version, releasedate)
+					card = URCard(cardid, name, attribute, normalimagelink, idolizedimagelink, smile, pure, cool, skill, effect, leaderskill, leadereffect, version, releasedate)
 				if rank == 'Ultra Rare' and version == 'pretransformed':
-					card = URGiftCard(cardid, name, attribute, smile, pure, cool, skill, effect, leaderskill, leadereffect, version, releasedate)
+					card = URGiftCard(cardid, name, attribute, normalimagelink, idolizedimagelink, smile, pure, cool, skill, effect, leaderskill, leadereffect, version, releasedate)
 				
 				member.add_card(card)
 
@@ -572,7 +572,7 @@ def main():
 				if not membermanager.loaded_member(name):
 					mp.fetchwebpage(name)
 					mp.parse(name)
-					load_member(membermanager, name)
+					membermanager.load_member(name)
 
 				cards = membermanager.get_member(name).get_cards(cardid, rank, attribute, startdate, enddate)
 				print('Found %d %s %s %s card(s)%s.' % (len(cards), attribute if attribute else '', rank if rank else '', name, 'width id #' + str(cardid) if cardid else ''))
