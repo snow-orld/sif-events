@@ -57,12 +57,6 @@ def init(args):
 		mp.fetchwebpage(member)
 		mp.parse(member)
 
-		fullname = mp.nameMap2Fullname[member]
-		memberimgfolder = os.path.join(IMAGEFOLDER, fullname)
-
-		if not os.path.exists(memberimgfolder):
-			os.mkdir(memberimgfolder)
-
 def get_image_urls(name, ranks, attributes):
 	# return the links specified by name, ranks, and attributes
 	start = datetime.utcnow()
@@ -106,6 +100,9 @@ def mass_download(name, imgurls):
 
 	fullname = mp.nameMap2Fullname[name]
 	memberimgfolder = os.path.join(IMAGEFOLDER, fullname)
+
+	if not os.path.exists(memberimgfolder):
+		os.mkdir(memberimgfolder)
 
 	class DownloadJob(workerpool.Job):
 		def __init__(self, imgurl):

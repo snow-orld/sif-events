@@ -4,9 +4,11 @@
 .DS_Store
 __pycache__
 
+member
+
 *.html
 *.txt
 *.xml
-*.png
+*.jpg
 
 *test*
