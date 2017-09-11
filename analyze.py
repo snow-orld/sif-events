@@ -47,8 +47,13 @@ class Period(object):
 			self.__enddate.month,
 			self.__enddate.day)
 
+	# python 3 eleminate __cmp__, use __lt__ instead
 	def __cmp__(self, other):
 		return self.get_startdate().__cmp__(other.get_startdate())
+
+	# python 3 compatibility
+	def __lt__(self, other):
+		return self.get_startdate() < other.get_startdate()
 
 	def get_startdate(self):
 		return self.__startdate
@@ -116,8 +121,13 @@ class Event(object):
 			self.__rankingSR,
 			)
 
+	# python 3 eliminate __cmp__, use __lt__ instead
 	def __cmp__(self, other):
 		return self.get_event_startdate().__cmp__(other.get_event_startdate())
+
+	# python 3 compatability
+	def __lt__(self, other):
+		return self.get_event_startdate() < other.get_event_startdate()
 	
 	def get_event_name(self):
 		return self.__name
@@ -199,7 +209,7 @@ class EventManager(object):
 	def add_event(self, event):
 		startdate = event.get_event_startdate()
 		etype = event.get_event_type()
-		if self.__events.has_key(startdate):
+		if startdate in self.__events:
 			raise RuntimeError('Add new event error... Duplicate event start date')
 			return
 		else:
@@ -372,15 +382,14 @@ class MemberManager(object):
 		member = Member(name, grade, birthday, age)
 
 		# card
-		with open(cardfile, 'rU') as f:
+		with codecs.open(cardfile, 'r', encoding='utf-8') as f:
 			# print('\nLoading %s\'s cards ...' % name)
 			header = f.readline().strip().replace(';', ' | ')
 			# print(header + '\n')
-
+			
 			for line in f:
 				cardid, rank, attribute, normalimagelink, idolizedimagelink, smile, pure, cool, skill, effect, leaderskill, leadereffect, version, releasedate = \
-					line.strip().split(';')
-				# print(cardid, rank, attribute, smile, pure, cool, skill, effect, leaderskill, leadereffect, version, releasedate)
+				line.strip().split(';')
 
 				if rank == 'Rare':
 					card = RCard(cardid, name, attribute, normalimagelink, idolizedimagelink, smile, pure, cool, skill, effect, leaderskill, leadereffect, version, releasedate)

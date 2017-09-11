@@ -4,7 +4,7 @@
 @file    classes.py
 @author  Cecilia M.
 @date    2017-09-01
-@version $Id: classes.py 03 2017-09-08 18:51: behrisch $
+@version $Id: classes.py 03 2017-09-011 10:41: behrisch $
 
 This script descrbes the basic component that appears 
 in the SIF game.
@@ -67,6 +67,11 @@ class Card(object):
 	def __cmp__(self, other):
 		# print(self.get_maxpoint(), other.get_maxpoint())
 		return self.get_maxpoint().__cmp__(other.get_maxpoint())
+
+	# python 3.6, __lt__ for '<' to work
+	# NOTE: "In Py3.0, the cmp parameter was removed entirely ..." https://docs.python.org/3/howto/sorting.html
+	def __lt__(self, other):
+		return self.get_maxpoint() < other.get_maxpoint()
 
 	# representation of object
 	def __repr__(self):

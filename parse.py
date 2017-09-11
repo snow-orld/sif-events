@@ -56,9 +56,9 @@ if not os.path.exists(PARSEDFILE) or os.path.getmtime(WEBPAGEFILE) > os.path.get
 		for th in headers[0].findAll('th'):
 			if th.attrs:
 				col_cnt += 1
-				if th.attrs.has_key('rowspan'):
+				if 'rowspan' in th.attrs:
 					headertext.append(th.text.strip())
-				if th.attrs.has_key('colspan'):
+				if 'colspan' in th.attrs:
 					for i in range(int(th['colspan'])):
 						secondrow_colindex.append(col_cnt - 1 + i)
 						headertext.append(u''.join(th.text.strip().split(' ')))
@@ -120,7 +120,7 @@ if not os.path.exists(PARSEDFILE) or os.path.getmtime(WEBPAGEFILE) > os.path.get
 				point_cutoff_1 = cols[0].text.strip()
 				current_colindex += 1
 				if rank_cutoff_leftrows_1 == 0:
-					if cols[current_colindex].attrs.has_key('rowspan'):
+					if 'rowspan' in cols[current_colindex].attrs:
 						rank_cutoff_leftrows_1 = int(cols[current_colindex]['rowspan'])
 					else:
 						rank_cutoff_leftrows_1 = 1
@@ -132,7 +132,7 @@ if not os.path.exists(PARSEDFILE) or os.path.getmtime(WEBPAGEFILE) > os.path.get
 				point_cutoff_2 = cols[current_colindex].text.strip()
 				current_colindex += 1
 				if rank_cutoff_leftrows_2 == 0:
-					if cols[current_colindex].attrs.has_key('rowspan'):
+					if 'rowspan' in cols[current_colindex].attrs:
 						rank_cutoff_leftrows_2 = int(cols[current_colindex]['rowspan'])
 					else:
 						rank_cutoff_leftrows_2 = 1
@@ -145,7 +145,7 @@ if not os.path.exists(PARSEDFILE) or os.path.getmtime(WEBPAGEFILE) > os.path.get
 				point_cutoff_3 = cols[current_colindex].text.strip()
 				current_colindex += 1
 				if rank_cutoff_leftrows_3 == 0:
-					if cols[current_colindex].attrs.has_key('rowspan'):
+					if 'rowspan' in cols[current_colindex].attrs:
 						rank_cutoff_leftrows_3 = int(cols[current_colindex]['rowspan'])
 					else:
 						rank_cutoff_leftrows_3 = 1

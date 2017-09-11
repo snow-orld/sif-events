@@ -88,7 +88,7 @@ def fetchwebpage(name=None):
 
 	fullname = nameMap2Fullname[name]
 	url = memberurls[fullname]
-	filename = os.path.join(MEMBERFOLDER, fullname.encode('ascii') + '.html')
+	filename = os.path.join(MEMBERFOLDER, fullname + '.html')
 
 	url = BASEURL + memberurls[fullname]
 	try:
@@ -98,7 +98,7 @@ def fetchwebpage(name=None):
 		sys.exit(1)
 	last_modified = datetime.strptime(req.headers['Last-Modified'], '%a, %d %b %Y %H:%M:%S %Z')
 
-	if not os.path.exists(filename) or os.stat(filename).st_size == 0L or datetime.utcfromtimestamp(os.path.getmtime(filename)) < last_modified:
+	if not os.path.exists(filename) or os.stat(filename).st_size == 0 or datetime.utcfromtimestamp(os.path.getmtime(filename)) < last_modified:
 		print('\nRetriving %s\'s file ...' % fullname)	# Future work: animating with progress
 		with codecs.open(filename, 'w', encoding='utf-8') as f:
 			f.write(req.text)
@@ -146,7 +146,7 @@ def parse(name=None, write=False):
 	membersoup = BeautifulSoup(codecs.open(htmlfile, 'r', encoding='utf-8-sig'), "html.parser")
 
 	# member basic info file, only created once
-	if not os.path.exists(basicfile) or os.stat(basicfile).st_size == 0L:
+	if not os.path.exists(basicfile) or os.stat(basicfile).st_size == 0:
 		print('Parsing %s\'s character profile to %s ...' % (fullname, fullname + MEMBERPROFILESUFFIX))
 
 		with codecs.open(basicfile, 'w', encoding='utf-8') as f:
@@ -157,7 +157,7 @@ def parse(name=None, write=False):
 			f.write('%s<%s>%s</%s>\n' % ('	', 'description', membersoup.table.find('p').getText().strip(), 'description'))
 			f.write('</characterprofile>\n')
 
-	if not os.path.exists(parsedfile) or os.stat(parsedfile).st_size == 0L or os.path.getmtime(htmlfile) > os.path.getmtime(parsedfile):
+	if not os.path.exists(parsedfile) or os.stat(parsedfile).st_size == 0 or os.path.getmtime(htmlfile) > os.path.getmtime(parsedfile):
 		print('Parsing %s\'s cards profile to %s ...' % (fullname, fullname + '.txt'))
 		
 		# parse cards - find all tags between #Cards and #Side_Stories
