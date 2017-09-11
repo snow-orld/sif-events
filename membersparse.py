@@ -4,7 +4,7 @@
 @file    membersparse.py
 @author  Cecilia M.
 @date    2017-09-02
-@version $Id: membersparse.py 04 2017-09-08 18:51: behrisch $
+@version $Id: membersparse.py 04 2017-09-11 11:13: behrisch $
 
 This script acts as a web crawler to aggregate all members'
 info of Japanese version from the wiki page
@@ -27,7 +27,6 @@ import time
 from constants import *
 
 MEMBERFOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'member')
-IMAGEFOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'member', 'img')
 nameMap2Fullname = {}	# map from given name to full name, key is given name
 memberurls = {}			# key is full name, e.g., Ayase Eli
 pointSR = ''
@@ -72,8 +71,6 @@ def init():
 
 	if not os.path.exists(MEMBERFOLDER):
 		os.mkdir(MEMBERFOLDER)
-	if not os.path.exists(IMAGEFOLDER):
-		os.mkdir(IMAGEFOLDER)
 
 	lasteventrow = soup.findAll('tr')[2]
 	ths = lasteventrow.findAll('td')
@@ -180,6 +177,14 @@ def parse(name=None, write=False):
 			for tag in tags:
 				if tag.name == 'h3':
 					rank = tag.string[:-1]
+					if rank == 'Rare':
+						rank = 'R'
+					if rank == 'Super Rare':
+						rank = 'SR'
+					if rank == 'Super Super Rare':
+						rank = 'SSR'
+					if rank == 'Ultra Rare':
+						rank = 'UR'
 				elif tag.name == 'table':
 					rows = tag.findAll('tr')
 					header = rows[0].th.span

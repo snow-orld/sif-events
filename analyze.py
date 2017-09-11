@@ -4,7 +4,7 @@
 @file    analyze.py
 @author  Cecilia M.
 @date    2017-08-30
-@version $Id: analyze.py 04 2017-09-08 18:51: behrisch $
+@version $Id: analyze.py 05 2017-09-011 11:43: behrisch $
 
 This script analyzes the past events of Japanese version 
 based on a local parsed file with info from the wiki page
@@ -391,15 +391,15 @@ class MemberManager(object):
 				cardid, rank, attribute, normalimagelink, idolizedimagelink, smile, pure, cool, skill, effect, leaderskill, leadereffect, version, releasedate = \
 				line.strip().split(';')
 
-				if rank == 'Rare':
+				if rank == 'R':
 					card = RCard(cardid, name, attribute, normalimagelink, idolizedimagelink, smile, pure, cool, skill, effect, leaderskill, leadereffect, version, releasedate)
-				if rank == 'Super Rare':
+				if rank == 'SR':
 					card = SRCard(cardid, name, attribute, normalimagelink, idolizedimagelink, smile, pure, cool, skill, effect, leaderskill, leadereffect, version, releasedate)
-				if rank == 'Super Super Rare':
+				if rank == 'SSR':
 					card = SSRCard(cardid, name, attribute, normalimagelink, idolizedimagelink, smile, pure, cool, skill, effect, leaderskill, leadereffect, version, releasedate)
-				if rank == 'Ultra Rare' and version != 'pretransformed':
+				if rank == 'UR' and version != 'pretransformed':
 					card = URCard(cardid, name, attribute, normalimagelink, idolizedimagelink, smile, pure, cool, skill, effect, leaderskill, leadereffect, version, releasedate)
-				if rank == 'Ultra Rare' and version == 'pretransformed':
+				if rank == 'UR' and version == 'pretransformed':
 					card = URGiftCard(cardid, name, attribute, normalimagelink, idolizedimagelink, smile, pure, cool, skill, effect, leaderskill, leadereffect, version, releasedate)
 				
 				member.add_card(card)
