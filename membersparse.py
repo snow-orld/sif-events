@@ -4,7 +4,7 @@
 @file    membersparse.py
 @author  Cecilia M.
 @date    2017-09-02
-@version $Id: membersparse.py 04 2017-09-11 11:13: behrisch $
+@version $Id: membersparse.py 05 2017-09-13 13:59: behrisch $
 
 This script acts as a web crawler to aggregate all members'
 info of Japanese version from the wiki page
@@ -78,6 +78,22 @@ def init():
 	rankSR = ths[3].text.strip()
 
 	del soup
+
+	# export nameMap2Fullname dictionary strings
+	with open('name.txt', 'w') as f:
+		f.write('FULLNAME = {\n')
+		for name in US+AQOURS:
+			f.write('\t"{}": "{}"{}\n'.format(name, nameMap2Fullname[name], ',' if name != 'Mari' else ''))
+		f.write('}')
+
+	# export memberurls dictionary strings
+	with open('memberurls.txt', 'w') as f:
+		f.write('MEMBER_URLS = {\n')
+		for name in US+AQOURS:
+			fullname = nameMap2Fullname[name]
+			url = memberurls[fullname]
+			f.write('\t"{}": "{}"{}\n'.format(name, url, ',' if name != 'Mari' else ''))
+		f.write('}')
 
 def fetchwebpage(name=None):
 	if name == None:

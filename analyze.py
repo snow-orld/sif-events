@@ -111,7 +111,7 @@ class Event(object):
 		self.__cutoff['rank3'] = int(rank_cutoff_3)
 
 	def __repr__(self):
-		return '{}: '.format(self.__class__.__name__,
+		return '{}: {} {}\t{}\t{}\t{}\t{}\t{}'.format(self.__class__.__name__,
 			self.__period,
 			self.__unit,
 			self.__name,
