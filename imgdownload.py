@@ -12,12 +12,14 @@ decaf.kouhi.me/lovelive/index.php?title=[Member_Name]
 
 The original imgdownloader is first finished on 9/09/17 but mistakenly 
 deleted due to a miss-hard-reset. The problem of the original script is
-it takes an average of 5 or more seconds to parse the dest image link,
-6 or more seconds to download each file.
+that it takes an average of 5 or more seconds to parse the dest image link,
+6 or more seconds to download each file. Now press CTRL-C to skip only the
+halted image downloading if it takes too long. Run the script again to re-download.
 
 Future Work:
-Workerpool may halt at some point that cannot exit by CTRL-C.
+(Done) Workerpool may halt at some point that cannot exit by CTRL-C.
 Try to use threading instead or multiprocessing module of workerpool.
+
 """
 
 import os
